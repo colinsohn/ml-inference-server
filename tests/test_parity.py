@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -20,9 +21,10 @@ class TestCppPythonParity(unittest.TestCase):
     def setUpClass(cls) -> None:
         BIN_DIR.mkdir(parents=True, exist_ok=True)
         if not CLI_BIN.exists():
+            cxx = shutil.which("clang++") or shutil.which("g++") or "c++"
             subprocess.run(
                 [
-                    "clang++",
+                    cxx,
                     "-std=c++17",
                     "-O3",
                     "-Wall",
