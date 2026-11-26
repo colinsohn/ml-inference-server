@@ -1,0 +1,58 @@
+{
+  "ir_version": 9,
+  "producer_name": "ml-inference-server-exporter",
+  "producer_version": "0.1.0",
+  "graph_name": "fraud_risk_scorer_v1",
+  "model_checksum_fnv1a": 3103579866,
+  "inputs": [
+    {
+      "name": "input_features",
+      "dtype": "float32",
+      "shape": [
+        "batch_size",
+        16
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "class_probabilities",
+      "dtype": "float32",
+      "shape": [
+        "batch_size",
+        4
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "fc1_ln_gelu",
+      "op_type": "FusedGemmLayerNormActivation",
+      "in_features": 16,
+      "out_features": 64,
+      "has_layer_norm": true,
+      "activation": "GELU"
+    },
+    {
+      "name": "fc2_relu",
+      "op_type": "FusedGemmActivation",
+      "in_features": 64,
+      "out_features": 32,
+      "has_layer_norm": false,
+      "activation": "RELU"
+    },
+    {
+      "name": "fc3_logits",
+      "op_type": "FusedGemmActivation",
+      "in_features": 32,
+      "out_features": 4,
+      "has_layer_norm": false,
+      "activation": "NONE"
+    },
+    {
+      "name": "output_softmax",
+      "op_type": "Softmax",
+      "axis": 1
+    }
+  ]
+}
