@@ -79,6 +79,34 @@ def main() -> int:
         check=True,
     )
 
+    print("\n=== 4b. Compiling & Testing C++20 Quantized INT8 + DynamicBatchScheduler Engine ===")
+    cxx20_flags = [
+        cxx,
+        "-std=c++20",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-pthread",
+        "-I",
+        str(ROOT_DIR / "include"),
+    ]
+    demo20_bin = BUILD_DIR / "main_demo"
+    bench20_bin = BUILD_DIR / "benchmark"
+    subprocess.run(
+        cxx20_flags + [str(ROOT_DIR / "src/inference_engine.cpp"), str(ROOT_DIR / "src/main_demo.cpp"), "-o", str(demo20_bin)],
+        check=True,
+    )
+    subprocess.run(
+        cxx20_flags + [str(ROOT_DIR / "src/inference_engine.cpp"), str(ROOT_DIR / "src/benchmark.cpp"), "-o", str(bench20_bin)],
+        check=True,
+    )
+    subprocess.run([str(demo20_bin)], check=True)
+    subprocess.run(
+        [sys.executable, "-B", "-m", "unittest", "discover", "-s", str(ROOT_DIR / "python"), "-p", "test_*.py", "-v"],
+        cwd=str(ROOT_DIR),
+        check=True,
+    )
+
     print("\n=== 5. Running C++17 Latency & Operator-Fusion Benchmark ===")
     bench_path = REPORTS_DIR / "benchmark_day01.json"
     subprocess.run(
