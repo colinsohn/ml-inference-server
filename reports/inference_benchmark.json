@@ -1,0 +1,58 @@
+{
+  "format_version": 1,
+  "architecture": "MLP [128 -> 256 -> 128 -> 16] with LayerNorm + GELU + Softmax",
+  "fp32_weight_bytes": 270336,
+  "int8_weight_bytes": 69184,
+  "weight_compression_ratio": 3.907,
+  "fp32_vs_int8_max_abs_probability_diff": 0.002742,
+  "benchmarks": [
+    {
+      "mode": "single_request_fp32",
+      "precision": "FP32",
+      "batch_size": 1,
+      "iterations": 2000,
+      "total_items": 2000,
+      "p50_latency_us": 38.750,
+      "p95_latency_us": 76.333,
+      "p99_latency_us": 83.166,
+      "mean_latency_us": 44.374,
+      "throughput_items_per_sec": 22475.456
+    },
+    {
+      "mode": "single_request_int8",
+      "precision": "INT8",
+      "batch_size": 1,
+      "iterations": 2000,
+      "total_items": 2000,
+      "p50_latency_us": 34.167,
+      "p95_latency_us": 35.167,
+      "p99_latency_us": 45.042,
+      "mean_latency_us": 34.534,
+      "throughput_items_per_sec": 28929.203
+    },
+    {
+      "mode": "batched_32_fp32",
+      "precision": "FP32",
+      "batch_size": 32,
+      "iterations": 400,
+      "total_items": 12800,
+      "p50_latency_us": 1039.375,
+      "p95_latency_us": 1076.666,
+      "p99_latency_us": 1126.125,
+      "mean_latency_us": 1045.536,
+      "throughput_items_per_sec": 30605.212
+    },
+    {
+      "mode": "batched_32_int8",
+      "precision": "INT8",
+      "batch_size": 32,
+      "iterations": 400,
+      "total_items": 12800,
+      "p50_latency_us": 1122.208,
+      "p95_latency_us": 1171.583,
+      "p99_latency_us": 1204.333,
+      "mean_latency_us": 1129.740,
+      "throughput_items_per_sec": 28322.469
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: C++20 Engine, Dynamic Batching & Python Parity CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile C++20 binaries with strict warnings (-Wall -Wextra -Werror)
+        run: |
+          make clean
+          make all
+
+      - name: Run C++20 unit and concurrent batching tests
+        run: |
+          make test
+
+      - name: Run Python exporter and cross-language C++ engine integration tests
+        run: |
+          python -m py_compile python/exporter.py python/test_exporter.py
+          python -B -m unittest discover -s python -p "test_*.py" -v
+
+      - name: Run CLI demonstration and benchmark verification
+        run: |
+          make demo >/dev/null
+          ./build/benchmark >/dev/null
