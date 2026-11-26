@@ -1,25 +1,27 @@
-# 21-Day Development Roadmap — ML Inference Server
+# 21-Day Development Roadmap (`ml-inference-server`)
 
-| Day | Milestone | Status |
-| --- | --- | --- |
-| **Day 1** | C++20 tensor core (`Tensor`), numerically stable `LayerNorm`, `ReLU`, `GELU`, and `Softmax`, `FP32` and symmetric per-channel `INT8` quantized `LinearLayer`, and FNV-1a checksum-guarded `.mlis` binary serialization. | **Completed (Nov 26, 2026)** |
-| **Day 2** | Thread-safe `DynamicBatchScheduler` with microsecond coalescing and overload backpressure, Python weight exporter and cross-language parity tests (`python/exporter.py`), C++20 benchmark CLI (`reports/inference_benchmark.json`), and GitHub Actions CI. | **Completed (Nov 26, 2026)** |
-| **Day 3** | Cache-blocked / SIMD-tiled (`AVX2` / ARM `NEON`) matrix multiplication kernels with benchmark comparison against baseline loops. | Pending |
-| **Day 4** | Dynamic activation quantization (`INT8 x INT8 -> INT32` accumulation with per-channel rescaling) and calibration histogram collector. | Pending |
-| **Day 5** | ONNX protobuf / JSON graph importer supporting general DAG topologies and residual skip connections (`Add` + `LayerNorm`). | Pending |
-| **Day 6** | Multi-head self-attention (`QKV` projection, scaled dot-product attention, causal masking, and KV-cache arena allocator). | Pending |
-| **Day 7** | Custom slab/arena memory pool eliminating per-request heap allocations (`std::vector` malloc/free) along the hot inference path. | Pending |
-| **Day 8** | Multi-worker thread-pool execution engine for parallel intra-batch and inter-batch scheduling. | Pending |
-| **Day 9** | HTTP/JSON and binary TCP inference server endpoint (`/v1/models/{name}:predict`, `/healthz`, `/metrics`) using non-blocking sockets. | Pending |
-| **Day 10** | Priority-aware request scheduling and per-request deadline propagation (cancelling expired queued requests before execution). | Pending |
-| **Day 11** | Zero-copy `mmap` weight loading with page-aligned tensor offsets in `MLISv002` format. | Pending |
-| **Day 12** | Operator fusion pass (fusing `Linear + Bias + ReLU/GELU` and `Add + LayerNorm` into single-pass memory kernels). | Pending |
-| **Day 13** | Hot-reload model registry supporting atomic version swaps and shadow A/B traffic splitting without dropping in-flight batches. | Pending |
-| **Day 14** | Python PyTorch (`torch.nn.Module`) and ONNX Runtime end-to-end accuracy and latency parity suite. | Pending |
-| **Day 15** | Tail-latency (`p99` / `p99.9`) load generator under Poisson and bursty arrival distributions across batch timeouts. | Pending |
-| **Day 16** | Token-streaming autoregressive generation loop with KV-cache reuse and top-$k$ / nucleus ($p$) sampling. | Pending |
-| **Day 17** | Speculative / continuous batching scheduler for variable-length sequence requests. | Pending |
-| **Day 18** | AddressSanitizer (`-fsanitize=address,undefined`) and ThreadSanitizer (`-fsanitize=thread`) CI regression gates. | Pending |
-| **Day 19** | Multi-stage production `Dockerfile` and containerized latency benchmark. | Pending |
-| **Day 20** | Fresh-clone build verification and interactive C++/Python CLI walkthrough. | Pending |
-| **Day 21** | Final release verification, roof-line performance analysis, and portfolio summary. | Pending |
+Timeline: **November 26 – December 16, 2026** (Active New Project Slot 2/2).
+
+| Day | Date | Status | Milestone | Verification Command |
+| --- | --- | :---: | --- | --- |
+| **Day 1** | Nov 26 | `[x]` | **C++17 Tensor & Fused Operator Engine, Python/PyTorch/ONNX Exporter, Numerical Parity Suite & Latency Benchmark**: Contiguous `Tensor` & zero-allocation `ActivationArena`, 4-way unrolled `MatMul`, fused `Linear+Bias+LayerNorm+GELU/ReLU`, stable `Softmax`, FNV-1a checksummed binary loader, Python/PyTorch/ONNX exporter (`python/export_model.py`), C++ unit tests (`tests/test_engine.cpp`), Python-to-C++ parity tests (`< 1e-6` max error), and batch latency/fusion benchmark (`reports/benchmark_day01.json`). | `python3 -B scripts/build_and_test.py` |
+| **Day 2** | Nov 27 | `[ ]` | **ONNX Graph Importer & Static Shape Inference**: Parse ONNX node topologies (`Gemm`, `MatMul`, `Add`, `LayerNorm`, `Relu`, `Gelu`, `Softmax`) and validate tensor shapes at load time. | `python3 -B scripts/build_and_test.py` |
+| **Day 3** | Nov 28 | `[ ]` | **Thread-Local Arena Pool & Allocation Counters**: Verify zero heap allocations during steady-state inference via custom allocator counters. | `python3 -B scripts/build_and_test.py` |
+| **Day 4** | Nov 29 | `[ ]` | **Ahead-of-Time Graph Optimizer & Pattern Fusion Pass**: Automated graph rewrite pass merging sequential `MatMul + Add + Activation` nodes. | `python3 -B scripts/build_and_test.py` |
+| **Day 5** | Nov 30 | `[ ]` | **Dynamic Batching Scheduler with Bounded Queue Deadlines**: Coalesce concurrent single-item requests into batch tensors under `max_batch_size` and `max_queue_delay_us`. | `python3 -B scripts/build_and_test.py` |
+| **Day 6** | Dec 1 | `[ ]` | **Multi-Threaded Worker Pool & Request Cancellation**: Bounded C++ thread pool with per-worker arenas and deadline cancellation. | `python3 -B scripts/build_and_test.py` |
+| **Day 7** | Dec 2 | `[ ]` | **Hardware SIMD Micro-Kernels (ARM NEON / AVX2 + Scalar Fallback)**: Register-tiled `float32` matrix multiplication with runtime/compile-time SIMD dispatch. | `python3 -B scripts/build_and_test.py` |
+| **Day 8** | Dec 3 | `[ ]` | **INT8 Symmetric Weight Quantization & Calibration**: Per-channel `INT8` weight quantization and C++ `LinearInt8` kernel with accuracy-vs-latency benchmark. | `python3 -B scripts/build_and_test.py` |
+| **Day 9** | Dec 4 | `[ ]` | **Cross-Runtime PyTorch & ONNX Runtime 1,000-Sample Parity Suite**: Automated statistical parity suite comparing FP32 and INT8 error distributions. | `python3 -B scripts/build_and_test.py` |
+| **Day 10** | Dec 5 | `[ ]` | **HTTP/JSON & Binary Framing C++ Inference Server**: Network serving endpoints (`POST /v1/models/{model}:predict`, `GET /healthz`, `GET /metrics`). | `python3 -B scripts/build_and_test.py` |
+| **Day 11** | Dec 6 | `[ ]` | **Multi-Model Registry & Atomic Zero-Downtime Hot-Reload**: Lock-free/atomic `std::shared_ptr<const InferenceEngine>` model version swaps. | `python3 -B scripts/build_and_test.py` |
+| **Day 12** | Dec 7 | `[ ]` | **Scaled Dot-Product Self-Attention & KV-Cache Operator**: Transformer attention block with pre-allocated sequence KV-cache in C++17. | `python3 -B scripts/build_and_test.py` |
+| **Day 13** | Dec 8 | `[ ]` | **Admission Control, Overload Shedding & SLA Enforcement**: Queue-delay estimator shedding requests that cannot meet client timeout budgets. | `python3 -B scripts/build_and_test.py` |
+| **Day 14** | Dec 9 | `[ ]` | **Per-Operator Nanosecond Profiler & Chrome Trace Exporter**: Operator-level latency breakdown and `trace.json` timeline generator. | `python3 -B scripts/build_and_test.py` |
+| **Day 15** | Dec 10 | `[ ]` | **ASan, UBSan & TSan Sanitizer Verification**: Full C++ unit and concurrency suite under Address, UndefinedBehavior, and Thread Sanitizers. | `python3 -B scripts/build_and_test.py` |
+| **Day 16** | Dec 11 | `[ ]` | **Python Client SDK & Closed-Loop Load Generator**: Measure SLA-compliant goodput vs. concurrency across batching policies. | `python3 -B scripts/build_and_test.py` |
+| **Day 17** | Dec 12 | `[ ]` | **Multi-Stage Container Build & Cloud Run Scale-to-Zero Guide**: Minimal runtime container image and `DEPLOYMENT.md` cost review. | `python3 -B scripts/build_and_test.py` |
+| **Day 18** | Dec 13 | `[ ]` | **Reproducible Colab Export & Quantization Notebook**: End-to-end PyTorch training, ONNX export, INT8 calibration, and parity visualization notebook. | `python3 -B scripts/build_and_test.py` |
+| **Day 19** | Dec 14 | `[ ]` | **Batch Size vs. p99 Latency Pareto Frontier Benchmark**: Full sweep across batch sizes, threads, and precision (`reports/pareto_benchmark.json`). | `python3 -B scripts/build_and_test.py` |
+| **Day 20** | Dec 15 | `[ ]` | **Fresh-Clone Reproduction & Interactive Walkthrough**: Single-command fresh-clone build, test, and server demo. | `python3 -B scripts/build_and_test.py` |
+| **Day 21** | Dec 16 | `[ ]` | **Final Release Audit & Capacity Transition**: Verify all acceptance criteria and release concurrency slot. | `python3 -B scripts/build_and_test.py` |

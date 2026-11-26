@@ -1,9 +1,7 @@
-# Work Log — ML Inference Server
+# Work Log (`ml-inference-server`)
 
-## November 26, 2026 (Pacific) — Project Initialization & Milestones 1–2
+## November 26, 2026 — Day 1: C++17 Tensor & Fused Operator Engine, Python/PyTorch/ONNX Exporter, Numerical Parity Suite & Latency Benchmark
 
-- Established system architecture (`ARCHITECTURE.md`), 21-day development roadmap (`ROADMAP.md`), persistent agent instructions (`AGENTS.md`), `Makefile`, and GitHub Actions CI workflow (`.github/workflows/ci.yml`).
-- Implemented the C++20 inference engine (`include/inference_engine.hpp`, `src/inference_engine.cpp`):
-  - Row-major `Tensor`, numerically stable `LayerNorm`, `ReLU`, `GELU`, and `Softmax`, `FP32` and symmetric per-output-channel `INT8` quantized `LinearLayer` (~3.88x weight compression), and FNV-1a 64-bit checksum-guarded `.mlis` binary serialization.
-  - Thread-safe `DynamicBatchScheduler` coalescing concurrent requests into batched forward passes with bounded queue backpressure (`OverloadError`).
-- Implemented the Python weight exporter and cross-language golden parity test suite (`python/exporter.py`, `python/test_exporter.py`), C++20 unit test suite (`tests/test_engine.cpp`), CLI demo (`src/main_demo.cpp`), and latency/throughput benchmark (`src/benchmark.cpp`, `reports/inference_benchmark.json`).
+- Initialized `ml-inference-server` (Active New Project Slot 2/2) with `ARCHITECTURE.md`, 21-day `ROADMAP.md`, `AGENTS.md`, `WORKLOG.md`, `Makefile`, `Dockerfile`, and `.github/workflows/ci.yml`.
+- Implemented C++17 inference runtime (`include/ml_inference/engine.hpp`, `src/engine.cpp`, `src/main.cpp`) featuring contiguous row-major `Tensor`, zero-allocation `ActivationArena`, 4-way loop-unrolled `op_matmul_bias`, `op_layer_norm_inplace`, `op_relu_inplace`, exact `erf`-based `op_gelu_inplace`, numerically stable `op_softmax_inplace`, fused `forward_fused_into` vs. `forward_unfused` execution paths, and FNV-1a checksum verification on binary model load.
+- Implemented Python/PyTorch/ONNX exporter and IEEE-754 float32 reference evaluator (`python/export_model.py`), C++17 unit test suite (`tests/test_engine.cpp`), Python-to-C++ numerical parity integration test suite (`tests/test_parity.py`), and unified build/test/benchmark runner (`scripts/build_and_test.py`).
