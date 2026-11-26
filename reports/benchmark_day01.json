@@ -1,0 +1,93 @@
+{
+  "benchmark": "ml-inference-server-cpp17-day01",
+  "model": {
+    "num_layers": 3,
+    "input_dim": 16,
+    "output_dim": 4,
+    "checksum": 3103579866
+  },
+  "iterations_per_config": 3000,
+  "results": [
+    {
+      "batch_size": 1,
+      "fused_p50_us": 1.041,
+      "fused_p95_us": 1.083,
+      "fused_p99_us": 1.084,
+      "fused_mean_us": 1.029,
+      "fused_items_per_sec": 951009.687,
+      "unfused_p50_us": 1.166,
+      "unfused_p95_us": 1.208,
+      "unfused_mean_us": 1.159,
+      "unfused_items_per_sec": 836790.907,
+      "fusion_speedup_ratio": 1.126,
+      "arena_floats_used": 96
+    },
+    {
+      "batch_size": 8,
+      "fused_p50_us": 8.084,
+      "fused_p95_us": 8.542,
+      "fused_p99_us": 10.792,
+      "fused_mean_us": 8.198,
+      "fused_items_per_sec": 973273.82,
+      "unfused_p50_us": 8.084,
+      "unfused_p95_us": 8.417,
+      "unfused_mean_us": 8.422,
+      "unfused_items_per_sec": 946432.885,
+      "fusion_speedup_ratio": 1.027,
+      "arena_floats_used": 768
+    },
+    {
+      "batch_size": 16,
+      "fused_p50_us": 15.834,
+      "fused_p95_us": 20.792,
+      "fused_p99_us": 22.63,
+      "fused_mean_us": 16.457,
+      "fused_items_per_sec": 970801.801,
+      "unfused_p50_us": 15.333,
+      "unfused_p95_us": 20.708,
+      "unfused_mean_us": 15.964,
+      "unfused_items_per_sec": 1000190.14,
+      "fusion_speedup_ratio": 0.97,
+      "arena_floats_used": 1536
+    },
+    {
+      "batch_size": 32,
+      "fused_p50_us": 31.625,
+      "fused_p95_us": 33.875,
+      "fused_p99_us": 36.417,
+      "fused_mean_us": 31.94,
+      "fused_items_per_sec": 1001164.553,
+      "unfused_p50_us": 31.792,
+      "unfused_p95_us": 32.377,
+      "unfused_mean_us": 31.523,
+      "unfused_items_per_sec": 1013907.345,
+      "fusion_speedup_ratio": 0.987,
+      "arena_floats_used": 3072
+    },
+    {
+      "batch_size": 64,
+      "fused_p50_us": 65.667,
+      "fused_p95_us": 69.0,
+      "fused_p99_us": 76.501,
+      "fused_mean_us": 66.236,
+      "fused_items_per_sec": 965941.142,
+      "unfused_p50_us": 62.583,
+      "unfused_p95_us": 70.333,
+      "unfused_mean_us": 63.553,
+      "unfused_items_per_sec": 1006348.423,
+      "fusion_speedup_ratio": 0.959,
+      "arena_floats_used": 6144
+    }
+  ],
+  "environment": {
+    "platform": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "compiler": "/usr/bin/clang++",
+    "python_version": "3.14.7"
+  },
+  "parity_verification": {
+    "golden_samples_verified": 64,
+    "max_abs_error_threshold": 1e-06,
+    "parity_passed": true
+  }
+}

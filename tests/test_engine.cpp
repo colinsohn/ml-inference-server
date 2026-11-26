@@ -1,130 +1,142 @@
-#include "inference_engine.hpp"
+#include "ml_inference/engine.hpp"
 
 #include <cassert>
 #include <cmath>
-#include <cstdio>
-#include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
-
-using namespace mlis;
 
 namespace {
 
-void test_tensor_and_activations() {
-    Tensor x(2, 4, {-2.0f, 0.0f, 1.0f, 4.0f, 1000.0f, 1001.0f, 999.0f, 1000.0f});
-    Tensor r = x;
-    relu_inplace(r);
-    assert(r.at(0, 0) == 0.0f);
-    assert(r.at(0, 2) == 1.0f);
+void test_matmul_and_activations() {
+    // 2x3 input * 2x3 weights^T + bias(2)
+    const float input[6] = {
+        1.0f, 2.0f, 3.0f,
+        -1.0f, 0.5f, 2.0f
+    };
+    const float weights[6] = {
+        0.5f, -0.5f, 1.0f,   // out 0
+        -1.0f, 2.0f, 0.25f   // out 1
+    };
+    const float bias[2] = {0.1f, -0.2f};
+    float output[4] = {0.0f};
 
-    Tensor g = x;
-    gelu_inplace(g);
-    assert(g.at(0, 0) < 0.0f && g.at(0, 0) > -0.1f);
-    assert(g.at(0, 2) > 0.8f && g.at(0, 2) < 0.85f);
+    ml_inference::op_matmul_bias(input, 2, 3, weights, bias, 2, output);
 
-    std::vector<float> gamma(4, 1.0f);
-    std::vector<float> beta(4, 0.0f);
-    Tensor ln = x;
-    layer_norm_inplace(ln, gamma, beta);
-    float row0_mean = (ln.at(0, 0) + ln.at(0, 1) + ln.at(0, 2) + ln.at(0, 3)) / 4.0f;
-    assert(std::fabs(row0_mean) < 1e-5f);
+    // Row 0, Out 0: 1*0.5 + 2*(-0.5) + 3*1.0 + 0.1 = 2.6
+    // Row 0, Out 1: 1*(-1) + 2*2 + 3*0.25 - 0.2 = 3.55
+    assert(std::abs(output[0] - 2.6f) < 1e-6f);
+    assert(std::abs(output[1] - 3.55f) < 1e-6f);
 
-    // Numerically stable softmax must not NaN/overflow on +1000 logits
-    Tensor sm = x;
-    softmax_inplace(sm);
-    float sum_row1 = 0.0f;
-    for (size_t c = 0; c < 4; ++c) {
-        assert(std::isfinite(sm.at(1, c)));
-        assert(sm.at(1, c) > 0.0f && sm.at(1, c) < 1.0f);
-        sum_row1 += sm.at(1, c);
+    ml_inference::op_relu_inplace(output, 4);
+    for (float v : output) {
+        assert(v >= 0.0f);
     }
-    assert(std::fabs(sum_row1 - 1.0f) < 1e-5f);
-    assert(sm.at(1, 1) > sm.at(1, 0) && sm.at(1, 0) > sm.at(1, 2));
 }
 
-void test_fp32_int8_parity_and_serialization() {
-    SequentialModel model = SequentialModel::create_deterministic_mlp({32, 64, 32, 8}, Activation::GELU, true, true, 12345);
-    assert(model.fp32_weight_bytes() > model.int8_weight_bytes() * 3);
+void test_layer_norm_invariance() {
+    std::vector<float> row = {2.0f, 4.0f, 6.0f, 8.0f};
+    std::vector<float> gamma = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::vector<float> beta = {0.0f, 0.0f, 0.0f, 0.0f};
 
-    Tensor input(4, 32);
-    for (size_t i = 0; i < input.size(); ++i) {
-        input.data[i] = std::sin(static_cast<float>(i) * 0.17f);
+    ml_inference::op_layer_norm_inplace(row.data(), 1, 4, gamma.data(), beta.data(), 1e-6f);
+
+    float mean = 0.0f;
+    float var = 0.0f;
+    for (float v : row) {
+        mean += v;
+        var += v * v;
+    }
+    mean /= 4.0f;
+    var /= 4.0f;
+    assert(std::abs(mean) < 1e-6f);
+    assert(std::abs(var - 1.0f) < 1e-4f);
+}
+
+void test_softmax_numerical_stability() {
+    std::vector<float> extreme_logits = {1000.0f, 1001.0f, 999.0f};
+    ml_inference::op_softmax_inplace(extreme_logits.data(), 1, 3);
+    float sum = 0.0f;
+    for (float p : extreme_logits) {
+        assert(std::isfinite(p));
+        assert(p > 0.0f && p < 1.0f);
+        sum += p;
+    }
+    assert(std::abs(sum - 1.0f) < 1e-6f);
+    assert(extreme_logits[1] > extreme_logits[0]);
+    assert(extreme_logits[0] > extreme_logits[2]);
+}
+
+void test_fused_vs_unfused_graph_equivalence_and_arena_zero_growth() {
+    ml_inference::InferenceEngine engine;
+
+    ml_inference::LinearLayer l1;
+    l1.in_features = 4;
+    l1.out_features = 6;
+    l1.has_layer_norm = true;
+    l1.activation = ml_inference::ActivationType::GELU;
+    l1.weights.resize(24);
+    for (std::size_t i = 0; i < 24; ++i) {
+        l1.weights[i] = static_cast<float>(static_cast<int>(i) - 10) * 0.1f;
+    }
+    l1.bias = {0.1f, -0.2f, 0.05f, 0.3f, -0.1f, 0.2f};
+    l1.ln_gamma = {1.1f, 0.9f, 1.0f, 1.05f, 0.95f, 1.0f};
+    l1.ln_beta = {0.01f, -0.02f, 0.0f, 0.03f, -0.01f, 0.0f};
+
+    ml_inference::LinearLayer l2;
+    l2.in_features = 6;
+    l2.out_features = 3;
+    l2.has_layer_norm = false;
+    l2.activation = ml_inference::ActivationType::NONE;
+    l2.weights.resize(18);
+    for (std::size_t i = 0; i < 18; ++i) {
+        l2.weights[i] = static_cast<float>(static_cast<int>(i) - 8) * 0.15f;
+    }
+    l2.bias = {-0.1f, 0.25f, 0.05f};
+
+    engine.add_layer(l1);
+    engine.add_layer(l2);
+
+    ml_inference::Tensor input(5, 4);
+    for (std::size_t i = 0; i < input.size(); ++i) {
+        input.data[i] = static_cast<float>(static_cast<int>(i) - 9) * 0.2f;
     }
 
-    Tensor out_fp32 = model.forward(input, Precision::FP32);
-    Tensor out_int8 = model.forward(input, Precision::INT8);
-    assert(out_fp32.rows == 4 && out_fp32.cols == 8);
-    assert(out_int8.rows == 4 && out_int8.cols == 8);
+    auto unfused = engine.forward_unfused(input);
+    ml_inference::ActivationArena arena(1024);
+    ml_inference::Tensor fused(5, 3);
+    engine.forward_fused_into(input, fused, arena);
 
-    float diff = max_abs_diff(out_fp32, out_int8);
-    // Symmetric per-channel INT8 quantization after softmax should stay within bounded tolerance
-    assert(diff < 0.025f);
+    const std::size_t first_used = arena.used_floats();
+    assert(first_used == 5 * 6);
 
-    const std::string path = "/tmp/mlis_unit_test_model.mlis";
-    model.save(path);
-    SequentialModel loaded = SequentialModel::load(path);
-    Tensor out_loaded = loaded.forward(input, Precision::FP32);
-    assert(max_abs_diff(out_fp32, out_loaded) == 0.0f);
+    // Second pass reuses the exact same arena buffer without growing capacity
+    engine.forward_fused_into(input, fused, arena);
+    assert(arena.used_floats() == first_used);
+    assert(arena.capacity_floats() == 1024);
 
-    // Corrupt a single byte in the saved file and verify checksum rejection
-    {
-        std::fstream f(path, std::ios::in | std::ios::out | std::ios::binary);
-        f.seekp(24);
-        char b = 0;
-        f.read(&b, 1);
-        b ^= 0x5A;
-        f.seekp(24);
-        f.write(&b, 1);
+    for (std::size_t i = 0; i < fused.size(); ++i) {
+        assert(std::abs(fused.data[i] - unfused.data[i]) < 1e-6f);
     }
-    bool caught_corruption = false;
+
+    // Verify invalid input shape throws std::invalid_argument
+    ml_inference::Tensor bad_input(2, 5);
+    bool threw = false;
     try {
-        (void)SequentialModel::load(path);
-    } catch (const std::runtime_error&) {
-        caught_corruption = true;
+        (void)engine.forward_fused(bad_input);
+    } catch (const std::invalid_argument&) {
+        threw = true;
     }
-    std::remove(path.c_str());
-    assert(caught_corruption);
-}
-
-void test_dynamic_batch_scheduler_and_backpressure() {
-    SequentialModel model = SequentialModel::create_deterministic_mlp({16, 32, 4}, Activation::ReLU, true, true, 77);
-    DynamicBatchScheduler scheduler(model, Precision::FP32, 16, std::chrono::microseconds(2000), 64);
-
-    constexpr size_t kNumClients = 32;
-    std::vector<Tensor> inputs;
-    std::vector<std::future<Tensor>> futures;
-    inputs.reserve(kNumClients);
-    futures.reserve(kNumClients);
-
-    for (size_t i = 0; i < kNumClients; ++i) {
-        Tensor single(1, 16);
-        for (size_t c = 0; c < 16; ++c) {
-            single.at(0, c) = static_cast<float>((i + c) % 11) * 0.1f;
-        }
-        inputs.push_back(single);
-        futures.push_back(scheduler.submit(single));
-    }
-
-    for (size_t i = 0; i < kNumClients; ++i) {
-        Tensor batched_out = futures[i].get();
-        Tensor direct_out = model.forward(inputs[i], Precision::FP32);
-        assert(max_abs_diff(batched_out, direct_out) < 1e-5f);
-    }
-
-    SchedulerStats st = scheduler.stats();
-    assert(st.total_requests == kNumClients);
-    assert(st.total_items_inferred == kNumClients);
-    assert(st.total_batches >= 2 && st.total_batches <= kNumClients);
-    scheduler.shutdown();
+    assert(threw);
 }
 
 }  // namespace
 
 int main() {
-    test_tensor_and_activations();
-    test_fp32_int8_parity_and_serialization();
-    test_dynamic_batch_scheduler_and_backpressure();
-    std::cout << "PASS: all C++20 inference engine, quantization, checksum, and dynamic batching tests passed.\n";
+    test_matmul_and_activations();
+    test_layer_norm_invariance();
+    test_softmax_numerical_stability();
+    test_fused_vs_unfused_graph_equivalence_and_arena_zero_growth();
+    std::cout << "[PASS] All C++17 inference engine unit tests succeeded (4/4 suites).\n";
     return 0;
 }
