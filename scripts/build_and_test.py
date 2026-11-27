@@ -52,10 +52,7 @@ def main() -> int:
         check=True,
     )
 
-    print("\n=== 2. Running C++17 Unit Test Suite ===")
-    subprocess.run([str(test_bin)], check=True)
-
-    print("\n=== 3. Exporting Model Weights, ONNX Spec & Golden Validation Vectors ===")
+    print("\n=== 2. Exporting Model Weights, ONNX Spec & Golden Validation Vectors ===")
     sys.path.insert(0, str(ROOT_DIR))
     from python.export_model import export_artifacts
 
@@ -71,6 +68,9 @@ def main() -> int:
             indent=2,
         )
     )
+
+    print("\n=== 3. Running C++17 Unit Test Suite ===")
+    subprocess.run([str(test_bin)], cwd=str(ROOT_DIR), check=True)
 
     print("\n=== 4. Running Python-to-C++17 Numerical Parity Integration Tests ===")
     subprocess.run(
