@@ -34,10 +34,16 @@ struct Tensor {
 class ActivationArena {
 public:
     explicit ActivationArena(std::size_t capacity_floats = 262144)
-        : buffer_(capacity_floats, 0.0f), offset_(0) {}
+        : buffer_(capacity_floats, 0.0f),
+          offset_(0),
+          peak_used_(0),
+          reset_count_(0),
+          allocation_calls_(0),
+          heap_reallocations_(0) {}
 
     void reset() noexcept {
         offset_ = 0;
+        ++reset_count_;
     }
 
     float* allocate(std::size_t count) {
@@ -46,15 +52,27 @@ public:
         }
         float* ptr = buffer_.data() + offset_;
         offset_ += count;
+        if (offset_ > peak_used_) {
+            peak_used_ = offset_;
+        }
+        ++allocation_calls_;
         return ptr;
     }
 
     std::size_t used_floats() const noexcept { return offset_; }
+    std::size_t peak_used_floats() const noexcept { return peak_used_; }
     std::size_t capacity_floats() const noexcept { return buffer_.size(); }
+    std::size_t reset_count() const noexcept { return reset_count_; }
+    std::size_t allocation_calls() const noexcept { return allocation_calls_; }
+    std::size_t heap_reallocations() const noexcept { return heap_reallocations_; }
 
 private:
     std::vector<float> buffer_;
     std::size_t offset_;
+    std::size_t peak_used_;
+    std::size_t reset_count_;
+    std::size_t allocation_calls_;
+    std::size_t heap_reallocations_;
 };
 
 enum class ActivationType : uint32_t {
@@ -89,6 +107,9 @@ public:
     // Fused execution (single cache-resident pass per layer using pre-allocated buffers)
     Tensor forward_fused(const Tensor& input) const;
     void forward_fused_into(const Tensor& input, Tensor& output, ActivationArena& arena) const;
+
+    // Static ONNX JSON graph importer & shape inference validator against loaded layers
+    void verify_onnx_json_topology(const std::string& onnx_json_path) const;
 
     std::size_t num_layers() const noexcept { return layers_.size(); }
     std::size_t input_dim() const noexcept { return layers_.empty() ? 0 : layers_.front().in_features; }

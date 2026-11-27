@@ -113,7 +113,11 @@ void test_fused_vs_unfused_graph_equivalence_and_arena_zero_growth() {
     // Second pass reuses the exact same arena buffer without growing capacity
     engine.forward_fused_into(input, fused, arena);
     assert(arena.used_floats() == first_used);
+    assert(arena.peak_used_floats() == first_used);
     assert(arena.capacity_floats() == 1024);
+    assert(arena.reset_count() == 2);
+    assert(arena.allocation_calls() == 2);
+    assert(arena.heap_reallocations() == 0);
 
     for (std::size_t i = 0; i < fused.size(); ++i) {
         assert(std::abs(fused.data[i] - unfused.data[i]) < 1e-6f);
@@ -130,6 +134,14 @@ void test_fused_vs_unfused_graph_equivalence_and_arena_zero_growth() {
     assert(threw);
 }
 
+void test_onnx_static_shape_inference_verifier() {
+    auto engine = ml_inference::InferenceEngine::load_from_binary("artifacts/fraud_scorer_v1.bin");
+    engine.verify_onnx_json_topology("artifacts/fraud_scorer_v1.onnx.json");
+    assert(engine.num_layers() == 3);
+    assert(engine.input_dim() == 16);
+    assert(engine.output_dim() == 4);
+}
+
 }  // namespace
 
 int main() {
@@ -137,6 +149,7 @@ int main() {
     test_layer_norm_invariance();
     test_softmax_numerical_stability();
     test_fused_vs_unfused_graph_equivalence_and_arena_zero_growth();
-    std::cout << "[PASS] All C++17 inference engine unit tests succeeded (4/4 suites).\n";
+    test_onnx_static_shape_inference_verifier();
+    std::cout << "[PASS] All C++17 inference engine unit tests succeeded (5/5 suites).\n";
     return 0;
 }

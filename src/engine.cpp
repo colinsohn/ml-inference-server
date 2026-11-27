@@ -357,4 +357,47 @@ Tensor InferenceEngine::forward_fused(const Tensor& input) const {
     return output;
 }
 
+void InferenceEngine::verify_onnx_json_topology(const std::string& onnx_json_path) const {
+    if (layers_.empty()) {
+        throw std::runtime_error("Cannot verify ONNX topology on empty InferenceEngine");
+    }
+    std::ifstream in(onnx_json_path);
+    if (!in) {
+        throw std::runtime_error("Failed to open ONNX JSON topology file: " + onnx_json_path);
+    }
+    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (content.find("\"op_type\": \"Softmax\"") == std::string::npos) {
+        throw std::runtime_error("ONNX topology missing terminal Softmax node");
+    }
+
+    std::size_t search_pos = 0;
+    for (std::size_t i = 0; i < layers_.size(); ++i) {
+        const auto& layer = layers_[i];
+        const std::string in_tag = "\"in_features\": " + std::to_string(layer.in_features);
+        const std::string out_tag = "\"out_features\": " + std::to_string(layer.out_features);
+        const std::size_t p_in = content.find(in_tag, search_pos);
+        if (p_in == std::string::npos) {
+            throw std::runtime_error(
+                "ONNX static shape inference failed at layer " + std::to_string(i) +
+                ": expected " + in_tag
+            );
+        }
+        const std::size_t p_out = content.find(out_tag, p_in);
+        if (p_out == std::string::npos) {
+            throw std::runtime_error(
+                "ONNX static shape inference failed at layer " + std::to_string(i) +
+                ": expected " + out_tag
+            );
+        }
+        search_pos = p_out + out_tag.size();
+    }
+
+    if (checksum_ != 0) {
+        const std::string chk_tag = "\"model_checksum_fnv1a\": " + std::to_string(checksum_);
+        if (content.find(chk_tag) == std::string::npos) {
+            throw std::runtime_error("ONNX topology checksum mismatch against binary weights");
+        }
+    }
+}
+
 }  // namespace ml_inference
